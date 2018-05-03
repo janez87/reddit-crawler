@@ -49,13 +49,25 @@ for p in subreddit.new(limit=1000):
 
 authors = set(authors)
 
+already_crawled = set(db["submissions"].distinct("author_name"))
+print(already_crawled)
+
+authors = authors - already_crawled
+
+print(authors)
+
 print("Found ", len(authors),"redditors")
 
 for a in authors:
     print("Crawling submission by ",a)
-    author_submissions = list(reddit.redditor(a).new(limit=1000))
 
-    print("Found",len(author_submissions),"submissions")
-    for s in author_submissions:
-        db["submissions"].save(serialize(s))
+    try:
+        author_submissions = list(reddit.redditor(a).new(limit=1000))
+
+        print("Found",len(author_submissions),"submissions")
+        for s in author_submissions:
+            db["submissions"].save(serialize(s))
+    except Exception as e:
+        print(e)
+        continue
 
