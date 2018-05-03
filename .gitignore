@@ -1,0 +1,10 @@
+# Python env
+.reddit/
+__pycache__/
+
+# Pycharm project
+.idea/
+
+# Configuration file
+configuration/configuration.py
+
