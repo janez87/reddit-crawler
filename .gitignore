@@ -1,9 +1,13 @@
 # Python env
 .reddit/
 __pycache__/
-
+.DS_store
 # Pycharm project
 .idea/
+.vscode/
+
+dump/
+models/
 
 # Configuration file
 configuration/configuration.py
