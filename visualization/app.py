@@ -1,8 +1,8 @@
-#system modules
+# system modules
 import datetime
 import sys
 
-#external modules
+# external modules
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from pymongo import MongoClient
 from bson import ObjectId
@@ -20,9 +20,12 @@ client = MongoClient(
 db = client[configuration.DB_NAME]
 
 # Views rendering
+
+
 @app.route('/')
 def index():
     return render_template('index.html', title='NEET viz')
+
 
 @app.route('/other')
 def other():
@@ -53,32 +56,33 @@ def get_post_count():
     }'''
 
     match = {
-        "$match":{
-            "subreddit":"r/NEET"
+        "$match": {
+            "subreddit": "r/NEET"
         }
     }
     group = {
-        "$group":{
-            "_id":{
-                "year":"$_id.year",
-                "month":"$_id.month",
-                "day":"$_id.day"
+        "$group": {
+            "_id": {
+                "year": "$_id.year",
+                "month": "$_id.month",
+                "day": "$_id.day"
             },
             "count": {
                 "$sum": "$count"
             }
         }
-    
+
     }
 
     sort = {
-       "$sort":{
-           "_id":1
-       }
+        "$sort": {
+            "_id": 1
+        }
     }
 
-    data = list(db["submissions_count"].aggregate([match,group,sort]))
+    data = list(db["submissions_count"].aggregate([match, group, sort]))
     return jsonify(data)
+
 
 @app.route('/daily')
 def get_daily_pattern():
@@ -101,50 +105,156 @@ def get_daily_pattern():
     }
 
     sort = {
-        "$sort":{
-            "_id.hour":-1
+        "$sort": {
+            "_id.hour": -1
         }
     }
 
-    data = list(db["submissions_count"].aggregate([match,group,sort]))
+    data = list(db["submissions_count"].aggregate([match, group, sort]))
     return jsonify(data)
+
 
 @app.route('/subreddits_activity')
 def get_other_subreddit_count():
 
     submission_type = request.args["type"]
-    
+
     match = {
-	    "$match": {
+        "$match": {
             "type": submission_type,
             "subreddit_name_prefixed": {
                 "$ne": "r/NEET"
             }
-	    }
+        }
     }
 
     group = {
-	    "$group": {
+        "$group": {
             "_id": "$subreddit_name_prefixed",
             "count": {
                 "$sum": 1
             }
-	    }
+        }
     }
 
     sort = {
-        "$sort":{
-            "count":-1
+        "$sort": {
+            "count": -1
         }
     }
 
     limit = {
-        "$limit":50
+        "$limit": 50
     }
 
-    data = list(db["submissions"].aggregate([match, group, sort,limit]))
+    data = list(db["submissions"].aggregate([match, group, sort, limit]))
     return jsonify(data)
 
+
+@app.route('/entities')
+def get_entities():
+    query = [
+        {
+            "$match": {
+                "entities": {
+                    "$exists": True
+                }
+
+            }
+        },
+        {
+            "$project": {
+                "entities": 1
+            }
+
+        },
+        {
+            "$unwind": "$entities"
+        },
+        {
+            "$match": {
+
+                "entities.freebase_type.0": {"$exists": True}
+            }
+        },
+        {
+            "$project": {
+                "entity": "$entities.id"
+            }
+        },
+        {
+            "$group": {
+                "_id": "$entity",
+                "count": {
+                    "$sum": 1
+                }
+            }
+        },
+        {
+            "$sort": {
+                "count": -1
+            }
+
+        }, {
+
+            "$limit": 50
+        }]
+
+    query[0]["$match"]["subreddit_name_prefixed"] = "r/NEET"
+
+    data = list(db["submissions"].aggregate(query))
+    return jsonify(data)
+
+
+@app.route('/topics')
+def get_topics():
+    query = [{
+        "$match": {
+            "entities": {
+                "$exists": True
+            }
+        }
+    }, {
+
+        "$project": {
+            "topics": 1
+        }
+
+    },
+        {
+        "$unwind": "$topics"
+    },
+        {
+        "$match": {
+            "topics.score": {
+                "$gte": 0.7
+            }
+        }
+    },
+        {
+        "$project": {"topic": "$topics.label"}
+    },
+        {
+        "$group": {
+            "_id": "$topic",
+            "count": {
+                "$sum": 1
+            }
+        }
+    },
+        {
+        "$sort": {
+            "count": -1
+        }
+
+    }, {
+        "$limit": 50
+    }
+
+    ]
+
+    data = list(db["submissions"].aggregate(query))
+    return jsonify(data)
 
 
 if __name__ == '__main__':

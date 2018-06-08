@@ -2,6 +2,7 @@
 .reddit/
 __pycache__/
 .DS_store
+
 # Pycharm project
 .idea/
 .vscode/
