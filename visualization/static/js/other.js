@@ -47,6 +47,36 @@ function drawChart(type,data){
     })
 }
 
+function drawTermChart(data) {
+    var ctx = $("#terms_chart")[0].getContext("2d")
+    var chart_data = data.map(function (d) {
+        return {
+            y: d.value,
+            x: d.term
+        }
+    })
+
+    console.log(chart_data)
+    var labels = data.map(function (d) {
+        return d.term
+    })
+    var chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            datasets: [{
+                label: "Term mentions",
+                data: chart_data,
+            }],
+            labels: labels
+        }
+    })
+}
+
+function getTerms() {
+    $.get('terms?other=true', drawTermChart)
+}
+
 
 getPostActivity()
 getCommentActivity()
+getTerms()

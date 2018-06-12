@@ -40,7 +40,7 @@
 
         <div class="collapse navbar-collapse" id="navbarsExampleDefault">
             <ul class="navbar-nav mr-auto">
-                <li class="nav-item active">
+                <li class="nav-item">
                     <a class="nav-link" href="/">Activiy on r/NEET
                         <span class="sr-only">(current)</span>
                     </a>
@@ -50,8 +50,8 @@
                         <span class="sr-only">(current)</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/redditors">Redditors
+                <li>
+                    <a class="nav-link active" href="#">Redditors
                         <span class="sr-only">(current)</span>
                     </a>
                 </li>
@@ -61,43 +61,17 @@
 
     <div role="main" class="container">
         <div class="row">
-            <div class="col-md-7">
-                <div class="row text-center">
+            <div class="col-md-12">
+                <div class="row">
                     <div class="col-md-12 chart_container">
-                        <h1>Daily submissions on r/NEET</h1>
-                        <canvas id="daily_chart">
-                    
-                        </canvas>
-                    </div>
-                </div>
-                <div class="row text-center">
-                    <div class="col-md-12">
-                        <h1>Entities mentioned on r/NEET</h1>
-                        <canvas id="entities_chart">
-                    
-                        </canvas>
-                    </div>
-                </div>
-                <div class="row text-center">
-                    <div class="col-md-12">
-                        <h1>Topics mentioned on r/NEET</h1>
-                        <canvas id="topics_chart">
-                
-                        </canvas>
-                    </div>
-                </div>
-                <div class="row text-center">
-                    <div class="col-md-12">
-                        <h1>Terms used on r/NEET</h1>
-                        <canvas id="terms_chart">
-                
+                        <h3>Top r/NEET contributors</h3>
+                        <canvas id="contributors_chart">
+                        
                         </canvas>
                     </div>
                 </div>
             </div>
-            <div class="col-md-5 posts-container">
-
-            </div>
+             
         </div>
     </div>
     <!-- /.container -->
@@ -121,7 +95,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.bundle.min.js"></script>
 
-    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/redditors.js') }}"></script>
 
 </body>
 

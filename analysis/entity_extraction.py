@@ -47,7 +47,12 @@ for i in range(0,len(submissions)):
                 "id":entity.id,
                 "relevance_score":entity.relevance_score,
                 "confidence_score":entity.confidence_score,
-                "freebase_type": entity.freebase_types
+                "freebase_type": entity.freebase_types,
+                "dbpedia_type": entity.dbpedia_types,
+                "matched_positions": entity.matched_positions,
+                "matched_words": entity.matched_words,
+                "matched_text": entity.matched_text,
+                "data": entity.data
             })
         
         print("Topics found")

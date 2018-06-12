@@ -31,6 +31,9 @@ def index():
 def other():
     return render_template('other.html', title='NEET viz')
 
+@app.route('/redditors')
+def redditors():
+    return render_template("redditors.html", title='NEET viz')
 
 # AJAX response
 @app.route('/submissions')
@@ -227,7 +230,7 @@ def get_topics():
         {
         "$match": {
             "topics.score": {
-                "$gte": 0.7
+                "$gte": 1
             }
         }
     },
@@ -256,6 +259,124 @@ def get_topics():
     data = list(db["submissions"].aggregate(query))
     return jsonify(data)
 
+
+def clean(doc):
+    from nltk import word_tokenize, pos_tag
+    from nltk.corpus import stopwords
+    from nltk.stem.wordnet import WordNetLemmatizer
+    import string
+
+    stop = set(stopwords.words('english'))
+    exclude = set(string.punctuation)
+    lemma = WordNetLemmatizer()
+
+    stop_free = " ".join([i for i in doc.lower().split() if i not in stop])
+    punc_free = ''.join(ch for ch in stop_free if ch not in exclude)
+
+    pos_tagged = pos_tag(punc_free.split())
+
+    to_consider = list(filter(lambda x: x[1] not in [
+                       'IN', 'CD', 'MD'], pos_tagged))
+
+    to_consider = list(map(lambda x: x[0], to_consider))
+
+    to_consider = list(filter(lambda x: x not in ['neet', 'im'], to_consider))
+
+    normalized = " ".join(lemma.lemmatize(word) for word in to_consider)
+    return normalized
+
+@app.route("/terms")
+def get_term_document_frequency():
+    from gensim import corpora, models
+    doc_complete = []
+    print("Getting the submissions")
+
+    query = {}
+
+    if 'other' in request.args:
+        query = {"subreddit_name_prefixed": {"$ne":"r/NEET"}}
+    else: 
+        query = {"subreddit_name_prefixed": "r/NEET"}
+
+
+    submissions = db["submissions"].find(query)
+
+    for s in submissions:
+        if s["type"] == "post":
+            text = s["title"]+' '+s["selftext"]
+            doc_complete.append(text)
+        else:
+            doc_complete.append(s["body"])
+
+    print("Cleaning the submissions")
+    doc_clean = [clean(doc).split() for doc in doc_complete]
+    dictionary = corpora.Dictionary(doc_clean)
+
+    data = []
+
+    for i, d in enumerate(dictionary):
+        df = dictionary.dfs[i]
+        data.append({
+            "term":dictionary[d],
+            "value": df
+        })
+
+    data = sorted(data,key=lambda x: -x["value"])    
+    return jsonify(data[:100])
+
+@app.route("/posts")
+def get_post_by_topic():
+
+    query = {
+        "subreddit_name_prefixed": "r/NEET",
+        "type":"post"
+    }
+
+    if "topic" in request.args:
+        topic = request.args["topic"]
+        query["topics"] = {
+            "$elemMatch":{
+                "label":topic,
+                "score":1
+            }
+        }
+
+    if "entity" in request.args:
+        entity = request.args["entity"]
+        query["entities"] = {
+            "$elemMatch": {
+                "id": entity
+            }
+        }
+
+    posts = list(db["submissions"].find(query,{"_id":0}))
+
+    return jsonify(posts)
+
+@app.route("/contributors")
+def get_contributors():
+
+    query = [{
+	"$match": {
+            "subreddit": "r/NEET"
+	}
+    }, {
+	"$group": {
+            "_id": "$author_name",
+          		"count": {
+                            "$sum": "$count"
+                        }
+	}
+    }, {
+
+	"$sort": {
+            "count": -1
+	}
+    }]
+
+    users = list(db["submissions_count"].aggregate(query))
+
+    return jsonify(users)
 
 if __name__ == '__main__':
     app.run(debug=True)

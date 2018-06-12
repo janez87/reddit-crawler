@@ -88,6 +88,19 @@ function drawEntitiesChart(data){
         }
     })
 
+    $("#entities_chart").on('click', function (e) {
+        var bar = chart.getElementAtEvent(e);
+
+        if (!bar.length) {
+            return
+        }
+
+        entity = bar[0]._model.label
+        console.log(bar[0]._model.label)
+
+        $.get("posts?entity=" + entity, drawPosts)
+    })
+
 
 }
 function getEntities(){
@@ -119,13 +132,76 @@ function drawTopicsChart(data) {
         }
     })
 
+    $("#topics_chart").on('click', function (e) {
+        var bar = chart.getElementAtEvent(e);
+
+        if (!bar.length) {
+            return
+        }
+
+        topic = bar[0]._model.label
+        console.log(bar[0]._model.label)
+
+       $.get("posts?topic="+topic,drawPosts)
+    })
+
 
 }
+
+function drawPosts(data){
+    var $container = $('.posts-container')
+
+    $container.empty()
+    console.log(data)
+    data.forEach(d => {
+        var text = (d["title"] || "") + (d["selftext_html"] || "") + '\n<a href="'+d["url"]+'" target="_blank">Original Post</a>'
+        var $post = $(document.createElement("div"))
+        $post.addClass('post')
+        var $body = $(document.createElement("div"))
+        $body.html(text)
+        $body.appendTo($post)
+        $post.appendTo($container)
+
+        console.log($post)
+    });
+}
+
 function getTopics() {
     $.get('topics', drawTopicsChart)
 
 }
 
+
+function drawTermChart(data){
+    var ctx = $("#terms_chart")[0].getContext("2d")
+    var chart_data = data.map(function (d) {
+        return {
+            y: d.value,
+            x: d.term
+        }
+    })
+
+    console.log(chart_data)
+    var labels = data.map(function (d) {
+        return d.term
+    })
+    var chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            datasets: [{
+                label: "Term mentions",
+                data: chart_data,
+            }],
+            labels: labels
+        }
+    })
+}
+
+function getTerms(){
+    $.get('terms',drawTermChart)
+}
+
 getDailyPattern()
 getEntities()
 getTopics()
+getTerms()
