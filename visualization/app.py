@@ -378,5 +378,25 @@ def get_contributors():
 
     return jsonify(users)
 
+@app.route('/contributor')
+def get_contributor():
+    name = request.args["name"]
+
+    query = {
+        "subreddit":"r/NEET",
+        "author_name":name
+    }
+
+    data = list(db["submissions_count"].find(query,{"_id":0}).sort("date",1))
+
+    comments = list(filter(lambda x: x["type"]=="comment",data))
+    posts = list(filter(lambda x: x["type"]=="post",data))
+
+    return jsonify({
+        "comments":comments,
+        "posts":posts
+    })
+
+
 if __name__ == '__main__':
     app.run(debug=True)
