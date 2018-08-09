@@ -453,9 +453,12 @@ def get_term_document_frequency():
 @app.route("/posts")
 def get_post_by_topic():
 
-    query = {
-        "subreddit_name_prefixed": "r/NEET"
-    }
+    query = {}
+    
+    if "other" not in request.args:
+        query = {
+            "subreddit_name_prefixed": "r/NEET"
+        }
 
     if "topic" in request.args:
         topic = request.args["topic"]

@@ -63,7 +63,7 @@
         <div class="row">
             <div class="col-md-7">
                 <div class="row text-center">
-                    <div class="col-md-12 chart_container">
+                    <div class="col-md-12 chart-container">
                         <h1>Daily submissions on r/NEET</h1>
                         <canvas id="daily_chart">
                     
@@ -86,17 +86,20 @@
                         </canvas>
                     </div>
                 </div>
-                <div class="row text-center">
-                    <div class="col-md-12">
-                        <h1>Terms used on r/NEET</h1>
-                        <canvas id="terms_chart">
-                
-                        </canvas>
-                    </div>
-                </div>
             </div>
-            <div class="col-md-5 posts-container">
-
+            <div class="col-md-5 submissions-container">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#post-list" id="posts-tab" role="tab" data-toggle="tab">Posts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#comment-list" id="comments-tab" role="tab" data-toggle="tab">Comments</a>
+                    </li>
+                </ul>
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active posts-container" id="post-list" role="tabpanel" aria-labelledby="posts-tab">Click on an <strong>Entity or Topic</strong> on the chart to retrieve the related Posts and Comments</div>
+                    <div class="tab-pane fade comments-container" id="comment-list" role="tabpanel" aria-labelledby="comments-tab">Click on an <strong>Entity or Topic</strong> on the chart to retrieve the related Posts and Comments</div>
+                </div>
             </div>
         </div>
     </div>

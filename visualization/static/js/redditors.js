@@ -1,3 +1,5 @@
+var entity_chart = {}
+var sub_chart = {}
 function getPostActivity(name) {
     $.get('subreddits_activity?type=post&author='+name, drawChart.bind(null, 'post'))
 }
@@ -19,26 +21,39 @@ function drawChart(type, data) {
         return d._id
     })
     console.log(chart_data)
-    var chart = new Chart(ctx, {
-        type: "bar",
-        data: {
-            datasets: [{
-                label: "# of " + type,
-                data: chart_data,
-            }],
-            labels: labels
-        },
-        options: {
-            scales: {
-                yAxes: [{
-                    display: true,
-                    ticks: {
-                        beginAtZero: true   // minimum value will be 0.
-                    }
-                }]
+
+    if (!sub_chart[type]) {
+        sub_chart[type] = new Chart(ctx, {
+            type: "bar",
+            data: {
+                datasets: [{
+                    label: "# of " + type,
+                    data: chart_data,
+                }],
+                labels: labels
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        display: true,
+                        ticks: {
+                            beginAtZero: true   // minimum value will be 0.
+                        }
+                    }]
+                }
             }
+        })
+    } else {
+        var chart = sub_chart[type]
+        chart.data.datasets[0] = {
+            data: chart_data
         }
-    })
+
+        chart.data.labels = labels
+
+        chart.update()
+    }
+    
 
 }
 
@@ -59,7 +74,7 @@ function drawContributorsChart(data){
     var labels = data.map(function (d) {
         return d._id
     })
-    var chart = new Chart(ctx, {
+    contributors_chart = new Chart(ctx, {
         type: "bar",
         data: {
             datasets: [{
@@ -80,7 +95,7 @@ function drawContributorsChart(data){
     })
 
     $("#contributors_chart").on('click', function (e) {
-        var bar = chart.getElementAtEvent(e);
+        var bar = contributors_chart.getElementAtEvent(e);
 
         if (!bar.length) {
             return
@@ -114,26 +129,38 @@ function drawEntitiesChart(chart_id, data){
         name = id_array[id_array.length - 1]
         return name
     })
-    var chart = new Chart(ctx, {
-        type: "bar",
-        data: {
-            datasets: [{
-                label: "Entities mentions",
-                data: chart_data,
-            }],
-            labels: labels
-        },
-        options: {
-            scales: {
-                yAxes: [{
-                    display: true,
-                    ticks: {
-                        beginAtZero: true   // minimum value will be 0.
-                    }
-                }]
+
+    if(!entity_chart[chart_id]){
+        entity_chart[chart_id] = new Chart(ctx, {
+            type: "bar",
+            data: {
+                datasets: [{
+                    label: "Entities mentions",
+                    data: chart_data,
+                }],
+                labels: labels
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        display: true,
+                        ticks: {
+                            beginAtZero: true   // minimum value will be 0.
+                        }
+                    }]
+                }
             }
+        })
+    }else{
+        var chart = entity_chart[chart_id]
+        chart.data.datasets[0] = {
+            data: chart_data
         }
-    })
+
+        chart.data.labels = labels
+
+        chart.update()
+    }
 
 }
 

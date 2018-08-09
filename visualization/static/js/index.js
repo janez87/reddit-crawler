@@ -153,26 +153,34 @@ function drawTopicsChart(data) {
 }
 
 function drawPosts(data){
-    var $container = $('.posts-container')
+    var $postsContainer = $('.posts-container')
+    var $commentsContainer = $('.comments-container')
+    $postsContainer.empty()
+    $commentsContainer.empty()
 
-    $container.empty()
-    console.log(data)
     data.forEach(d => {
 
         var text = ""
         if(d["type"]==="post"){
-            text = (d["title"] || "") + (d["selftext_html"] || "") + '\n<a href="' + d["url"] + '" target="_blank">Original Post</a>'
+            text = ('<strong>' + d["title"] + '</strong>' || "") + (d["selftext_html"] || "") + '\n<a href="' + d["url"] + '" target="_blank">Original Post</a>'
+            var $post = $(document.createElement("div"))
+            $post.addClass('post')
+            var $body = $(document.createElement("div"))
+            $body.html(text)
+            $body.appendTo($post)
+            $post.appendTo($postsContainer)
+
+
         }else{
             text = d["body"]
+            var $post = $(document.createElement("div"))
+            $post.addClass('post')
+            var $body = $(document.createElement("div"))
+            $body.html(text)
+            $body.appendTo($post)
+            $post.appendTo($commentsContainer)
         }
-        var $post = $(document.createElement("div"))
-        $post.addClass('post')
-        var $body = $(document.createElement("div"))
-        $body.html(text)
-        $body.appendTo($post)
-        $post.appendTo($container)
 
-        console.log($post)
     });
 }
 
@@ -214,4 +222,3 @@ function getTerms(){
 getDailyPattern()
 getEntities()
 getTopics()
-getTerms()

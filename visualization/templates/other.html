@@ -61,34 +61,63 @@
     </nav>
 
     <div role="main" class="container">
-        <div class="row text-center chart_container">
-            <div class="col-md-6 ">
-                <h1>Posts</h1>
-                <canvas id="chartpost">
-
-                </canvas>
-            </div>
+        <div class="row">
             <div class="col-md-6">
-                <h1>Comments</h1>
-                <canvas id="chartcomment">
-        
-                </canvas>
+                <div class="row chart-container">
+                    <div class="col-md-12">
+                        <p class="lead">Click on a <strong>subreddit name</strong> on the chart to filter the entities and the topics</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="row text-center">
+                            <div class="col-md-12 ">
+                                <h1>Posts</h1>
+                                <canvas id="chartpost">
+                            
+                                </canvas>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-md-12">
+                                <h1>Comments</h1>
+                                <canvas id="chartcomment">
+                        
+                                </canvas>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-md-12">
+                                <h1>Entity on other subreddits</h1>
+                                <canvas id="entity_chart">
+                        
+                                </canvas>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-md-12">
+                                <h1>Topics on other subreddits</h1>
+                                <canvas id="topic_chart">
+                        
+                                </canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="row text-center">
-            <div class="col-md-12">
-                <h1>Entity on other subreddits</h1>
-                <canvas id="entity_chart">
-        
-                </canvas>
-            </div>
-        </div>
-        <div class="row text-center">
-            <div class="col-md-12">
-                <h1>Topics on other subreddits</h1>
-                <canvas id="topic_chart">
-        
-                </canvas>
+            <div class="col-md-5 submissions-container">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#post-list" id="posts-tab" role="tab" data-toggle="tab">Posts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#comment-list" id="comments-tab" role="tab" data-toggle="tab">Comments</a>
+                    </li>
+                </ul>
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active posts-container" id="post-list" role="tabpanel" aria-labelledby="posts-tab">Click on an <strong>Entity or Topic</strong> on the chart to retrieve the related Posts and Comments</div>
+                    <div class="tab-pane fade comments-container" id="comment-list" role="tabpanel" aria-labelledby="comments-tab">Click on an <strong>Entity or Topic</strong> on the chart to retrieve the related Posts and Comments</div>
+                </div>
             </div>
         </div>
     </div>

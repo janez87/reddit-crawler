@@ -6,6 +6,38 @@ function getCommentActivity() {
     $.get('subreddits_distinct_activity?type=comment', drawChart.bind(null, 'comment'))
 }
 
+function drawPosts(data) {
+    var $postsContainer = $('.posts-container')
+    var $commentsContainer = $('.comments-container')
+    $postsContainer.empty()
+    $commentsContainer.empty()
+
+    data.forEach(d => {
+
+        var text = ""
+        if (d["type"] === "post") {
+            text = ('<strong>' + d["title"] + '</strong>' || "") + (d["selftext_html"] || "") + '\n<a href="' + d["url"] + '" target="_blank">Original Post</a>'
+            var $post = $(document.createElement("div"))
+            $post.addClass('post')
+            var $body = $(document.createElement("div"))
+            $body.html(text)
+            $body.appendTo($post)
+            $post.appendTo($postsContainer)
+
+
+        } else {
+            text = d["body"]
+            var $post = $(document.createElement("div"))
+            $post.addClass('post')
+            var $body = $(document.createElement("div"))
+            $body.html(text)
+            $body.appendTo($post)
+            $post.appendTo($commentsContainer)
+        }
+
+    });
+}
+
 function drawChart(type,data){
     var ctx = $("#chart"+type)[0].getContext("2d")
     var chart_data = data.map(function (d) {
@@ -119,6 +151,20 @@ function drawEntityChart(data) {
             labels: labels
         }
     })
+
+    $("#entity_chart").on('click', function (e) {
+        var bar = entity_chart.getElementAtEvent(e);
+
+        if (!bar.length) {
+            return
+        }
+
+        entity = bar[0]._model.label
+        console.log(bar[0]._model.label)
+
+        $.get("posts?other=true&dbpedia_entity=" + entity, drawPosts)
+    })
+
 }
 
 function getEntities() {
@@ -151,6 +197,19 @@ function drawTopicChart(data) {
             }],
             labels: labels
         }
+    })
+
+    $("#topic_chart").on('click', function (e) {
+        var bar = topic_chart.getElementAtEvent(e);
+
+        if (!bar.length) {
+            return
+        }
+
+        topic = bar[0]._model.label
+        console.log(bar[0]._model.label)
+
+        $.get("posts?other=true&topic=" + topic, drawPosts)
     })
 }
 
