@@ -1,14 +1,13 @@
 
 function getPostActivity(){
-    $.get('subreddits_activity?type=post',drawChart.bind(null,'post'))
+    $.get('subreddits_distinct_activity?type=post',drawChart.bind(null,'post'))
 }
 function getCommentActivity() {
-    $.get('subreddits_activity?type=comment', drawChart.bind(null, 'comment'))
+    $.get('subreddits_distinct_activity?type=comment', drawChart.bind(null, 'comment'))
 }
 
 function drawChart(type,data){
     var ctx = $("#chart"+type)[0].getContext("2d")
-    console.log(data)
     var chart_data = data.map(function (d) {
         return {
             y: d.count,
@@ -19,7 +18,6 @@ function drawChart(type,data){
     var labels = data.map(function(d){
         return d._id
     })
-    console.log(chart_data)
     var chart = new Chart(ctx, {
         type: "bar",
         data: {
@@ -40,31 +38,82 @@ function drawChart(type,data){
         }
 
 
-        console.log(bar[0]._model.label)
+        var subreddit = bar[0]._model.label
+        
+        $.get("dbpedia_entities?subreddit="+subreddit,function (data) {
+            var chart_data = data.map(function (d) {
+                id_array = d._id.split('/')
+                name = id_array[id_array.length - 1]
+                return {
+                    y: d.count,
+                    x: name
+                }
+            })
 
-        var url = "https://www.reddit.com/" + bar[0]._model.label
-        window.open(url)
+            console.log(chart_data)
+            var labels = data.map(function (d) {
+                id_array = d._id.split('/')
+                name = id_array[id_array.length - 1]
+                return name
+            })
+
+            entity_chart.data.datasets[0] = {
+                data : chart_data
+            }
+
+            entity_chart.data.labels = labels
+
+            entity_chart.update()
+        })
+
+        $.get("topics?subreddit=" + subreddit, function (data) {
+            var chart_data = data.map(function (d) {
+                id_array = d._id.split('/')
+                name = id_array[id_array.length - 1]
+                return {
+                    y: d.count,
+                    x: name
+                }
+            })
+
+            var labels = data.map(function (d) {
+                id_array = d._id.split('/')
+                name = id_array[id_array.length - 1]
+                return name
+            })
+
+            topic_chart.data.datasets[0] = {
+                data: chart_data
+            }
+
+            topic_chart.data.labels = labels
+
+            topic_chart.update()
+        })
     })
 }
 
-function drawTermChart(data) {
-    var ctx = $("#terms_chart")[0].getContext("2d")
+function drawEntityChart(data) {
+    var ctx = $("#entity_chart")[0].getContext("2d")
     var chart_data = data.map(function (d) {
+        id_array = d._id.split('/')
+        name = id_array[id_array.length - 1]
         return {
-            y: d.value,
-            x: d.term
+            y: d.count,
+            x: name
         }
     })
 
-    console.log(chart_data)
     var labels = data.map(function (d) {
-        return d.term
+        id_array = d._id.split('/')
+        name = id_array[id_array.length - 1]
+        return name
     })
-    var chart = new Chart(ctx, {
+    entity_chart = new Chart(ctx, {
         type: "bar",
         data: {
             datasets: [{
-                label: "Term mentions",
+                label: "Entity mentions",
                 data: chart_data,
             }],
             labels: labels
@@ -72,11 +121,45 @@ function drawTermChart(data) {
     })
 }
 
-function getTerms() {
-    $.get('terms?other=true', drawTermChart)
+function getEntities() {
+    $.get('dbpedia_entities?other=true', drawEntityChart)
+}
+
+function drawTopicChart(data) {
+    var ctx = $("#topic_chart")[0].getContext("2d")
+    var chart_data = data.map(function (d) {
+        id_array = d._id.split('/')
+        name = id_array[id_array.length - 1]
+        return {
+            y: d.count,
+            x: name
+        }
+    })
+
+    console.log(chart_data)
+    var labels = data.map(function (d) {
+        id_array = d._id.split('/')
+        name = id_array[id_array.length - 1]
+        return name
+    })
+    topic_chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            datasets: [{
+                label: "Topic mentions",
+                data: chart_data,
+            }],
+            labels: labels
+        }
+    })
+}
+
+function getTopics() {
+    $.get('topics?other=true', drawTopicChart)
 }
 
 
 getPostActivity()
 getCommentActivity()
-getTerms()
+getEntities()
+getTopics()

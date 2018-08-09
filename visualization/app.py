@@ -89,12 +89,19 @@ def get_post_count():
 
 @app.route('/daily')
 def get_daily_pattern():
+    #match = {
+    #    "$match": {
+    #        "subreddit": "r/NEET"
+    #    }
+    #}
+
     match = {
         "$match": {
-            "subreddit": "r/NEET"
+            "subreddit":{
+                "$ne":"r/NEET"
+            }
         }
     }
-
     group = {
         "$group": {
             "_id": {
@@ -113,9 +120,47 @@ def get_daily_pattern():
         }
     }
 
-    data = list(db["submissions_count"].aggregate([match, group, sort]))
+    data = list(db["submissions_count"].aggregate([match,group, sort]))
     return jsonify(data)
 
+
+@app.route('/subreddits_distinct_activity')
+def get_other_subreddit_distinct_count():
+
+    submission_type = request.args["type"]
+
+    query = [
+	{
+            "$match": {"type": submission_type, "subreddit": {"$ne": "r/NEET"}}
+	}, {
+            "$group": {
+                "_id": {
+                    "subreddit": "$subreddit",
+                    "author": "$author_name"
+                }
+            }
+	}, {
+
+            "$group": {
+                "_id": "$_id.subreddit",
+                "count": {
+                    "$sum": 1
+                }
+            }
+
+	}, {
+
+            "$sort": {
+                "count": -1
+            }
+	},{
+
+        "$limit":50
+    }
+    ]
+
+    data = list(db["submissions_count"].aggregate(query))
+    return jsonify(data)
 
 @app.route('/subreddits_activity')
 def get_other_subreddit_count():
@@ -150,9 +195,78 @@ def get_other_subreddit_count():
         "$limit": 50
     }
 
+    if "author" in request.args:
+       match["$match"]["author_name"] = request.args["author"]
+
     data = list(db["submissions"].aggregate([match, group, sort, limit]))
     return jsonify(data)
 
+
+@app.route('/dbpedia_entities')
+def get_dbpedia_entities():
+    query = [{
+	"$match": {
+            "dbpedia_entities": {
+                "$exists": True
+            },
+            "subreddit_name_prefixed":"r/NEET"
+	}
+    }, {
+	"$project": {
+            "dbpedia_entities": 1
+	}
+
+    }, {
+
+	"$unwind": "$dbpedia_entities"
+
+    },{
+        "$match":{
+            "dbpedia_entities.similarityScore":{
+                "$gte":0.7
+            }
+        }
+    }, {
+
+	"$project": {
+            "uri": "$dbpedia_entities.URI"
+	}
+
+    }, {
+
+	"$group": {
+
+            "_id": "$uri",
+          		"count": {
+                            "$sum": 1
+                        }
+
+	}
+
+    }, {
+
+	"$sort": {
+            "count": -1
+	}
+    },{
+
+        "$limit":50
+    }]
+
+    if "other" in request.args:
+        query[0]["$match"]["subreddit_name_prefixed"] = {
+            "$ne":"r/NEET"
+        }
+
+    if "subreddit" in request.args:
+         query[0]["$match"]["subreddit_name_prefixed"] = request.args["subreddit"]
+
+    if "author" in request.args:
+        query[0]["$match"]["author_name"] = request.args["author"]
+
+
+    data = list(db["submissions"].aggregate(query))
+    return jsonify(data)
 
 @app.route('/entities')
 def get_entities():
@@ -215,7 +329,8 @@ def get_topics():
         "$match": {
             "entities": {
                 "$exists": True
-            }
+            },
+            "subreddit_name_prefixed":"r/NEET"
         }
     }, {
 
@@ -255,6 +370,17 @@ def get_topics():
     }
 
     ]
+
+    if "other" in request.args:
+        query[0]["$match"]["subreddit_name_prefixed"] = {
+            "$ne": "r/NEET"
+        }
+
+    if "subreddit" in request.args:
+         query[0]["$match"]["subreddit_name_prefixed"] = request.args["subreddit"]
+
+    if "author" in request.args:
+        query[0]["$match"]["author_name"] = request.args["author"]
 
     data = list(db["submissions"].aggregate(query))
     return jsonify(data)
@@ -328,8 +454,7 @@ def get_term_document_frequency():
 def get_post_by_topic():
 
     query = {
-        "subreddit_name_prefixed": "r/NEET",
-        "type":"post"
+        "subreddit_name_prefixed": "r/NEET"
     }
 
     if "topic" in request.args:
@@ -349,6 +474,15 @@ def get_post_by_topic():
             }
         }
 
+    if "dbpedia_entity" in request.args:
+        dbpedia_entity = request.args["dbpedia_entity"]
+        query["dbpedia_entities"] = {
+            "$elemMatch":{
+                "URI": "http://dbpedia.org/resource/"+dbpedia_entity
+            }
+        }
+
+    print(query)
     posts = list(db["submissions"].find(query,{"_id":0}))
 
     return jsonify(posts)
@@ -382,15 +516,36 @@ def get_contributors():
 def get_contributor():
     name = request.args["name"]
 
-    query = {
-        "subreddit":"r/NEET",
-        "author_name":name
-    }
+    query = [{
+	"$match": {
+            "subreddit": "r/NEET",
+          		"author_name": name
+	}
+    }, {
+	"$group": {
+            "_id": {
+                "day": "$_id.day",
+                "month": "$_id.month",
+            		  "year": "$_id.year",
+            		  "type": "$_id.type"
+            },
+          		"count": {
+                "$sum": "$count"
+            },
+            "date": {
+                "$first": "$date"
+            }
+	}
+    }, {
+	"$sort": {
+            "date": 1
+	}
+    }]
 
-    data = list(db["submissions_count"].find(query,{"_id":0}).sort("date",1))
+    data = list(db["submissions_count"].aggregate(query))
 
-    comments = list(filter(lambda x: x["type"]=="comment",data))
-    posts = list(filter(lambda x: x["type"]=="post",data))
+    comments = list(filter(lambda x: x["_id"]["type"]=="comment",data))
+    posts = list(filter(lambda x: x["_id"]["type"]=="post",data))
 
     return jsonify({
         "comments":comments,

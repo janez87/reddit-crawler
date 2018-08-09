@@ -15,8 +15,8 @@ db = client[configuration.DB_NAME]
 
 submissions = list(db["submissions"].find({"entities": {
                    "$exists": False}, 
-                   "type": "comment", 
-                   "subreddit_name_prefixed": "r/NEET"
+                   "type": "post", 
+                   "subreddit_name_prefixed": {"$ne":"r/NEET"}
                    }
                 ).sort("created_at",DESCENDING).limit(500))
 

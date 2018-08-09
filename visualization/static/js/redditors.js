@@ -1,4 +1,46 @@
+function getPostActivity(name) {
+    $.get('subreddits_activity?type=post&author='+name, drawChart.bind(null, 'post'))
+}
+function getCommentActivity(name) {
+    $.get('subreddits_activity?type=comment&author='+name, drawChart.bind(null, 'comment'))
+}
 
+function drawChart(type, data) {
+    var ctx = $("#chart" + type)[0].getContext("2d")
+    console.log(data)
+    var chart_data = data.map(function (d) {
+        return {
+            y: d.count,
+            x: d._id
+        }
+    })
+
+    var labels = data.map(function (d) {
+        return d._id
+    })
+    console.log(chart_data)
+    var chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            datasets: [{
+                label: "# of " + type,
+                data: chart_data,
+            }],
+            labels: labels
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    display: true,
+                    ticks: {
+                        beginAtZero: true   // minimum value will be 0.
+                    }
+                }]
+            }
+        }
+    })
+
+}
 
 function getContributors(){
 
@@ -25,7 +67,16 @@ function drawContributorsChart(data){
                 data: chart_data,
             }],
             labels: labels
-        }
+        },
+        options: {
+            scales: {
+            yAxes: [{
+                display: true,
+                ticks: {
+                    beginAtZero: true   // minimum value will be 0.
+                }
+            }]
+        }}
     })
 
     $("#contributors_chart").on('click', function (e) {
@@ -37,8 +88,53 @@ function drawContributorsChart(data){
 
         var name = bar[0]._model.label
 
-        $.get("contributor?name=" + name, drawSubChart)
+        //$.get("contributor?name=" + name, drawSubChart)
+        $.get('dbpedia_entities?author='+name, drawEntitiesChart.bind(null,"entity_chart"))
+        $.get('dbpedia_entities?other=true&author=' + name, drawEntitiesChart.bind(null, "entity_chart_2"))
+        getPostActivity(name)
+        getCommentActivity(name)
     })
+}
+
+
+function drawEntitiesChart(chart_id, data){
+    var ctx = $("#"+chart_id)[0].getContext("2d")
+    var chart_data = data.map(function (d) {
+        id_array = d._id.split('/')
+        name = id_array[id_array.length - 1]
+        return {
+            y: d.count,
+            x: name
+        }
+    })
+
+    console.log(chart_data)
+    var labels = data.map(function (d) {
+        id_array = d._id.split('/')
+        name = id_array[id_array.length - 1]
+        return name
+    })
+    var chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            datasets: [{
+                label: "Entities mentions",
+                data: chart_data,
+            }],
+            labels: labels
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    display: true,
+                    ticks: {
+                        beginAtZero: true   // minimum value will be 0.
+                    }
+                }]
+            }
+        }
+    })
+
 }
 
 function getDates(startDate, endDate) {
@@ -57,6 +153,11 @@ function getDates(startDate, endDate) {
 }
 
 function drawSubChart(data){
+
+    if(post_chart){
+        post_chart.clear()
+    }
+
     var ctx = $("#sub_chart")[0].getContext("2d")
    
     var chart_data_comments = data.comments.map(function (d) {
@@ -150,14 +251,14 @@ function drawSubChart(data){
         }
     }
    
-    var chart = new Chart(ctx, {
+    post_chart = new Chart(ctx, {
         type: "line",
-        bezierCurve: false,
+        bezierCurve: true,
         data: {
             datasets: [{
                 label: "Comments",
                 data: filled_chart_data_posts,
-                color:'rgb(0,0,255)'
+                borderColor:'rgba(0,0,255,0.7)'
             },{
                 label: "Posts",
                 data: filled_chart_data_comments
@@ -167,9 +268,10 @@ function drawSubChart(data){
             scales: {
                 xAxes: [{
                     type:'time',
-                    distribution:'series',
                     time: {
-                        unit: 'day'
+                        displayFormats: {
+                            quarter: 'MMM YYYY'
+                        }
                     }
                 }]
             }

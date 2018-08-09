@@ -31,7 +31,7 @@ function drawDailyChart(data){
     },0)
 
     var chart_data = data.map(function (d) { 
-        var newHour = d._id.hour -5
+        var newHour = d._id.hour - 5
 
         if(newHour<0){
             newHour = 24 + newHour
@@ -67,15 +67,19 @@ function getSubCount(){
 function drawEntitiesChart(data){
     var ctx = $("#entities_chart")[0].getContext("2d")
     var chart_data = data.map(function (d) {
+        id_array = d._id.split('/')
+        name = id_array[id_array.length - 1]
         return {
             y: d.count,
-            x: d._id
+            x: name
         }
     })
 
     console.log(chart_data)
     var labels = data.map(function (d) {
-        return d._id
+        id_array = d._id.split('/')
+        name = id_array[id_array.length-1]
+        return name
     })
     var chart = new Chart(ctx, {
         type: "bar",
@@ -98,13 +102,13 @@ function drawEntitiesChart(data){
         entity = bar[0]._model.label
         console.log(bar[0]._model.label)
 
-        $.get("posts?entity=" + entity, drawPosts)
+        $.get("posts?dbpedia_entity=" + entity, drawPosts)
     })
 
 
 }
 function getEntities(){
-    $.get('entities', drawEntitiesChart)
+    $.get('dbpedia_entities', drawEntitiesChart)
 
 }
 
@@ -154,7 +158,13 @@ function drawPosts(data){
     $container.empty()
     console.log(data)
     data.forEach(d => {
-        var text = (d["title"] || "") + (d["selftext_html"] || "") + '\n<a href="'+d["url"]+'" target="_blank">Original Post</a>'
+
+        var text = ""
+        if(d["type"]==="post"){
+            text = (d["title"] || "") + (d["selftext_html"] || "") + '\n<a href="' + d["url"] + '" target="_blank">Original Post</a>'
+        }else{
+            text = d["body"]
+        }
         var $post = $(document.createElement("div"))
         $post.addClass('post')
         var $body = $(document.createElement("div"))
