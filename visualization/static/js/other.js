@@ -90,7 +90,9 @@ function drawChart(type,data){
             })
 
             entity_chart.data.datasets[0] = {
-                data : chart_data
+                data : chart_data,
+                label: "# of entity"
+                
             }
 
             entity_chart.data.labels = labels
@@ -115,7 +117,8 @@ function drawChart(type,data){
             })
 
             topic_chart.data.datasets[0] = {
-                data: chart_data
+                data: chart_data,
+                label: "# of topic"
             }
 
             topic_chart.data.labels = labels

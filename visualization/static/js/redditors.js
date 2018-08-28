@@ -46,7 +46,8 @@ function drawChart(type, data) {
     } else {
         var chart = sub_chart[type]
         chart.data.datasets[0] = {
-            data: chart_data
+            data: chart_data,
+            label: "# of " + type
         }
 
         chart.data.labels = labels
@@ -154,7 +155,8 @@ function drawEntitiesChart(chart_id, data){
     }else{
         var chart = entity_chart[chart_id]
         chart.data.datasets[0] = {
-            data: chart_data
+            data: chart_data,
+            label: "Entities mentions"
         }
 
         chart.data.labels = labels

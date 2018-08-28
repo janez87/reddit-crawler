@@ -196,7 +196,7 @@ def get_other_subreddit_count():
     }
 
     if "author" in request.args:
-       match["$match"]["author_name"] = request.args["author"]
+       match["$match"]["author_id"] = request.args["author"]
 
     data = list(db["submissions"].aggregate([match, group, sort, limit]))
     return jsonify(data)
@@ -262,7 +262,7 @@ def get_dbpedia_entities():
          query[0]["$match"]["subreddit_name_prefixed"] = request.args["subreddit"]
 
     if "author" in request.args:
-        query[0]["$match"]["author_name"] = request.args["author"]
+        query[0]["$match"]["author_id"] = request.args["author"]
 
 
     data = list(db["submissions"].aggregate(query))
@@ -380,7 +380,7 @@ def get_topics():
          query[0]["$match"]["subreddit_name_prefixed"] = request.args["subreddit"]
 
     if "author" in request.args:
-        query[0]["$match"]["author_name"] = request.args["author"]
+        query[0]["$match"]["author_id"] = request.args["author"]
 
     data = list(db["submissions"].aggregate(query))
     return jsonify(data)
@@ -454,7 +454,7 @@ def get_term_document_frequency():
 def get_post_by_topic():
 
     query = {}
-    
+
     if "other" not in request.args:
         query = {
             "subreddit_name_prefixed": "r/NEET"
@@ -495,13 +495,13 @@ def get_contributors():
 
     query = [{
 	"$match": {
-            "subreddit": "r/NEET"
+            "subreddit_name_prefixed": "r/NEET"
 	}
     }, {
 	"$group": {
-            "_id": "$author_name",
+            "_id": "$author_id",
           		"count": {
-                            "$sum": "$count"
+                            "$sum": 1
                         }
 	}
     }, {
@@ -511,7 +511,7 @@ def get_contributors():
 	}
     }]
 
-    users = list(db["submissions_count"].aggregate(query))
+    users = list(db["submissions"].aggregate(query))
 
     return jsonify(users)
 
@@ -522,7 +522,7 @@ def get_contributor():
     query = [{
 	"$match": {
             "subreddit": "r/NEET",
-          		"author_name": name
+          	"author_name": name
 	}
     }, {
 	"$group": {
