@@ -2,6 +2,7 @@ from pymongo import MongoClient, DESCENDING
 import sys
 from collections import Counter
 from sklearn.cluster import KMeans, AgglomerativeClustering, SpectralClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
 from sklearn.metrics import silhouette_samples, silhouette_score
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -155,7 +156,7 @@ user_topics = list(db["submissions"].aggregate([{
 
 print("Getting user posted subreddit")
 
-user_post_subreddit = list(db["submissions"].aggregate([{"$match": {"subreddit_name_prefixed":{"$ne":"r/NEET"},"type": "comment", "author_name": {
+user_post_subreddit = list(db["submissions"].aggregate([{"$match": {"subreddit_name_prefixed":{"$ne":"r/NEET"},"type": "post", "author_name": {
     "$nin": outliers
 }}}, {
 
@@ -204,18 +205,26 @@ for u in all_users:
         users_features.append(features)
         considered_users.append(u)
 
-X = np.empty(len(all_features))
+#X = np.empty(len(all_features))
+
+X = []
 
 for u in users_features:
     count = Counter(u)
     mentioned_features = []
     for e in all_features:
-       mentioned_features.append(count[e])
+       c = 1 if count[e]>0 else 0
+       mentioned_features.append(c)
 
     #X = np.vstack((X,mentioned_features))
-    X = np.vstack((X, normalize([mentioned_features],axis=1)))
+    #X = np.vstack((X, normalize([mentioned_features],axis=1)))
+    #mentioned_features = normalize([mentioned_features],axis=1)
+    X.append(mentioned_features)
 
-X = np.delete(X,0,0) #Delete the first empty row?
+
+#X = np.delete(X,0,0) #Delete the first empty row?
+
+X = np.array(X)
 
 pca = PCA(.9).fit(X)
 X = pca.transform(X)
@@ -227,47 +236,27 @@ X = pca.transform(X)
 
 print(X.shape)
 
-n_clusters = 33
+Z = linkage(X, 'ward',"euclidean")
 
-clusterer = KMeans(n_clusters=n_clusters, random_state=10)
-cluster_labels = clusterer.fit_predict(X)
-
-user_clusters = {}
-for i,v in enumerate(cluster_labels):
-    print("User",considered_users[i],"belong to cluster",v)
-
-
-    if v in user_clusters:
-        user_clusters[v].append(considered_users[i])
-    else:
-        user_clusters[v] = [considered_users[i]]
-
-
-subreddit_clusters = {}
-
-print(user_clusters)
-for i,u in enumerate(user_clusters):
-
-    print(u)
-    query = {
-        "author_name":{"$in":user_clusters[u]},
-        "type":"comment"
-    }
-
-    subreddit_clusters[str(u)] = list(
-        db["submissions_count"].distinct("subreddit", query))
+plt.figure(figsize=(25, 10))
+plt.title('Hierarchical Clustering Dendrogram')
+plt.xlabel('sample index')
+plt.ylabel('distance')
+dendrogram(
+    Z,
+    leaf_rotation=90.,  # rotates the x axis labels
+    leaf_font_size=8.,  # font size for the x axis labels
+    labels=all_users
+)
+plt.show()
 
 
-print(subreddit_clusters)
-
-with open('clusters.json',mode='w') as f:
-    json.dump(subreddit_clusters,f)
-
-'''range_n_clusters = [17,21,25,28,30,33,35,40]
+""" range_n_clusters = range(10, 20, 2)
 
 distortions = []
 for n_clusters in range_n_clusters:
     # Create a subplot with 1 row and 2 columns
+    print('Number of clusters:', n_clusters)
     fig, (ax1, ax2) = plt.subplots(1, 2)
     fig.set_size_inches(18, 7)
 
@@ -281,7 +270,8 @@ for n_clusters in range_n_clusters:
 
     # Initialize the clusterer with n_clusters value and a random generator
     # seed of 10 for reproducibility.
-    clusterer = KMeans(n_clusters=n_clusters, random_state=10)
+    clusterer = KMeans(n_clusters=n_clusters, random_state=10,
+                       init='k-means++', max_iter=100)
     cluster_labels = clusterer.fit_predict(X)
 
     distortions.append(sum(np.min(
@@ -361,4 +351,4 @@ plt.ylabel('Distortion')
 plt.title('The Elbow Method showing the optimal k')
 
 plt.show()
-'''
+ """
