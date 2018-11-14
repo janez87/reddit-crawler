@@ -39,6 +39,7 @@ for i in range(0,len(submissions)):
         print("Saving")
         db["submissions"].update({"_id":submissions[i]["_id"]},{"$set":{"dbpedia_entities":annotations}})
 
+        
     except Exception as e:
         print(e)
         continue
