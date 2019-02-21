@@ -9,6 +9,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from sklearn.cluster import SpectralClustering
 from sklearn import metrics
+import math
 
 sys.path.append("../")
 from configuration import configuration
@@ -23,7 +24,7 @@ submissions = list(db["submissions"].aggregate([
         "$match":{
             "type":"post",
             "subreddit_name_prefixed":{
-                "$ne":"r/NEET"
+                "$nin":["r/NEET"]
             }
         }
     },{
@@ -35,34 +36,59 @@ submissions = list(db["submissions"].aggregate([
     },{
 
         "$group":{
-            "_id":"$author_name",
-            "subreddits":{
-                "$addToSet": "$subreddit_name_prefixed"
+            "_id": "$subreddit_name_prefixed",
+            "authors":{
+                "$addToSet": "$author_name"
+            },
+            "count":{
+                "$sum":1
+            }
+        }
+    },{
+        "$match":{
+            "count":{
+                "$gte":35
+
             }
         }
     }
 ]))
 
 G = nx.Graph()
-
-authors = list(map(lambda x: x["_id"],submissions))
+submission_number = []
+subreddit = list(map(lambda x: x["_id"],submissions))
 
 #G.add_nodes_from(authors)
 #to_remove = []
 for i in range(0,len(submissions)):
-    i_subreddits = submissions[i]["subreddits"]
+    i_authors = submissions[i]["authors"]
+    submission_number.append(submissions[i]["count"])
     #connected = False
     for k in range(i+1,len(submissions)):
-        k_subreddits = submissions[k]["subreddits"]
-        if set(i_subreddits) & set(k_subreddits):
+        k_authors = submissions[k]["authors"]
+        if set(i_authors) & set(k_authors):
             #connected = True
-            G.add_edge(submissions[i]["_id"], submissions[k]["_id"], subreddits=(
-                set(i_subreddits) & set(k_subreddits)), weight=len(set(i_subreddits) & set(k_subreddits)))
+            G.add_edge(submissions[i]["_id"], submissions[k]["_id"], weight=math.log(len(
+                set(i_authors) & set(k_authors))))
     #if not connected:
         #to_remove.append(submissions[i]["_id"])
 
+#nx.draw_networkx_edges(G, pos, alpha=0.5)
+
+
+'''n, bins, patches = plt.hist(x=submission_number, bins='auto', color='#0504aa',
+                            alpha=0.7, rwidth=0.85)
+plt.grid(axis='y', alpha=0.75)
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.title('My Very Own Histogram')
+plt.text(23, 45, r'$\mu=15, b=3$')
+maxfreq = n.max()
+# Set a clean upper y-axis limit.
+plt.show()
 #for d in to_remove:
  #   G.remove_node(d)
+'''
 
 #pos = nx.spring_layout(G)
 #nx.draw(G, pos, node_size=10, with_labels=True)
@@ -80,33 +106,42 @@ for i in range(0,len(submissions)):
 # NOTE: Apparently nx also does this now
 # fiedler_vector = [nx.fiedler_vector(G)]
 
+#centrality = nx.algorithms.degree_centrality(G)
+#print(centrality)
+
+density = nx.density(G)
+print(density)
+
+#avg_shortest_path = nx.average_shortest_path_length(G)
+#print(avg_shortest_path)
+
 laplacian = nx.laplacian_matrix(G)
 
 v = np.sort(np.linalg.eigvals(laplacian.todense()))[::-1]
 x = range(0,len(v))
 
-#print(v)
+print(v)
 plt.plot(x,v)
 plt.show()
 
 adj_mat = nx.to_numpy_matrix(G)
 
 # Cluster
-sc = SpectralClustering(20, affinity='precomputed', n_init=100)
+sc = SpectralClustering(18, affinity='precomputed', n_init=100)
 sc.fit(adj_mat)
 
 
-'''color_array = ['blue', 'red', 'green',
-               'orange', 'black', 'navy', 'teal', 'lime', 'aqua', 'maroon', 'purple', 'olive', 'gray', 'silver', 'fuchsia','yellow']
+color_array = ['blue', 'red', 'green',
+              'orange', 'black', 'navy', 'teal', 'lime', 'aqua', 'maroon', 'purple', 'olive', 'gray', 'silver', 'fuchsia','yellow']
 
-color_map = list(map(lambda x: color_array[x], sc.labels_))
+'''color_map = list(map(lambda x: color_array[x], sc.labels_))
 
 pos = nx.spring_layout(G,scale=2)
 nx.draw(G, pos, node_size=50, node_color=color_map)
 plt.show()'''
 
 import functools
-for i in range(0,20):
+for i in range(0,17):
     print("Cluster",i)
     indexes = [c for c, x in enumerate(sc.labels_) if x == i]
 
@@ -115,15 +150,17 @@ for i in range(0,20):
 
     sub_graph = G.subgraph(nodes)
 
-    edge_labels = nx.get_edge_attributes(sub_graph, 'subreddits')
+    if not nx.is_connected(sub_graph):
+        print("WTF")
+    #edge_labels = nx.get_edge_attributes(sub_graph, 'subreddits')
 
-    subreddits = list(edge_labels.values())
+    #subreddits = list(edge_labels.values())
 
-    subreddits = functools.reduce(lambda x,y: x.union(y) if x else y ,subreddits,set())
-    print(subreddits)
+    #subreddits = functools.reduce(lambda x,y: x.union(y) if x else y ,subreddits,set())
+    #print(subreddits)
 
     #w_labels = nx.get_edge_attributes(sub_graph, 'weight')
-    #pos = nx.spring_layout(sub_graph, scale=2)
-    #nx.draw(sub_graph, pos, node_size=50)
+    pos = nx.spring_layout(sub_graph, scale=2)
+    nx.draw(sub_graph, pos, node_size=50, with_labels=True)
     #nx.draw_networkx_edge_labels(sub_graph, pos, labels=w_labels)
-    #plt.show()
+    plt.show()

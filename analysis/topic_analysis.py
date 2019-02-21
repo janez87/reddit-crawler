@@ -5,11 +5,14 @@ from nltk import word_tokenize, pos_tag
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
 import string
-import textrazor
+import gensim
 from gensim import corpora, models, utils
 import pyLDAvis
 import pyLDAvis.gensim  # don't skip this
 import matplotlib.pyplot as plt
+import re
+import textblob
+import spacy
 
 
 sys.path.append("../")
@@ -21,163 +24,157 @@ client = MongoClient(
 db = client[configuration.DB_NAME]
 
 stop = set(stopwords.words('english'))
-exclude = set(string.punctuation)
 lemma = WordNetLemmatizer()
-doc_complete = []
 
-print("Getting the submissions")
-submissions = db["submissions"].find(
-    {"selftext": {"$nin": ["[rimosso]", ""]}, "type": "post"})
+def sanitize_text(text):
+    """
+    Returns text after removing unnecessary parts.
+    
+    """
 
+    _text = " ".join([
+        l for l in text.strip().split("\n") if (
+            not l.strip().startswith("&gt;")
+        )
+    ])
+
+    _text = _text.lower()
+
+    substitutions = [
+        (r"\[(.*?)\]\((.*?)\)", r""),   # Remove links from Markdown
+        (r"[\"](.*?)[\"]", r""),    # Remove text within quotes
+        (r" \'(.*?)\ '", r""),      # Remove text within quotes
+        (r"\.+", r". "),        # Remove ellipses
+        (r"\(.*?\)", r""),        # Remove text within round brackets
+        (r"&amp;", r"&"),         # Decode HTML entities
+        (r"http.?:\S+\b", r" ")     # Remove URLs
+    ]
+    for pattern, replacement in substitutions:
+      _text = re.sub(pattern, replacement, _text, flags=re.I)
+    
+    return _text
+
+
+def clean_up(text):
+
+    substitutions = [
+        (r"\b(ive|i've)\b", "i have"),
+        (r"\b(im|i'm)\b", "i am"),
+        (r"\b(id|i'd)\b", "i would"),
+        (r"\b(i'll)\b", "i will"),
+        (r"\bbf|b/f\b", "boyfriend"),
+        (r"\bgf|g/f\b", "girlfriend"),
+        (r"\byoure\b", "you are"),
+        (r"\b(dont|don't)\b", "do not"),
+        (r"\b(didnt|didn't)\b", "did not"),
+        (r"\b(wasnt|wasn't)\b", "was not"),
+        (r"\b(isnt|isn't)\b", "is not"),
+        (r"\b(arent|aren't)\b", "are not"),
+        (r"\b(werent|weren't)\b", "were not"),
+        (r"\b(havent|haven't)\b", "have not"),
+        (r"\b(couldnt|couldn't)\b", "could not"),
+        (r"\b(hadnt|hadn't)\b", "had not"),
+        (r"\b(wouldnt|wouldn't)\b", "would not"),
+        (r"\bgotta\b", "have to"),
+        (r"\bgonna\b", "going to"),
+        (r"\bwanna\b", "want to"),
+        (r"\b(kinda|kind of)\b", ""),
+        (r"\b(sorta|sort of)\b", ""),
+        (r"\b(dunno|donno)\b", "do not know"),
+        (r"\b(cos|coz|cus|cuz)\b", "because"),
+        (r"\bfave\b", "favorite"),
+        (r"\bhubby\b", "husband"),
+        (r"\bheres\b", "here is"),
+        (r"\btheres\b", "there is"),
+        (r"\bthats\b", "that is"),
+        (r"\bwheres\b", "where is"),
+        # Common acronyms, abbreviations and slang terms
+        (r"\birl\b", "in real life"),
+        (r"\biar\b", "in a relationship"),
+        (r"\btotes\b", "totally"),
+        (r",", " and "),
+        # Remove fluff phrases
+        (r"\b(btw|by the way)\b", ""),
+        (r"\b(tbh|to be honest)\b", ""),
+        (r"\b(imh?o|in my( humble)? opinion)\b", ""),
+        # Default POS tagger seems to always tag "like"
+        # (and sometimes "love") as a noun - this is a bandaid fix for now
+        (r"\bprefer\b", ""),
+        (r"\b(like|love)\b", "prefer"),
+    ]
+
+    for pattern, replacement in substitutions:
+      text = re.sub(pattern, replacement, text, flags=re.I)
+
+    text = " ".join([i for i in text.split() if i not in stop])
+
+    return text
+
+
+def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
+    """https://spacy.io/api/annotation"""
+    texts_out = []
+    for sent in texts:
+        doc = nlp(" ".join(sent))
+        texts_out.append(
+            [token.lemma_ for token in doc if token.pos_ in allowed_postags])
+    return texts_out
+
+NUM_TOPICS = 10
+submissions = list(db["submissions"].find({"subreddit_name_prefixed":"r/NEET"}, { "body": 1, "selftext": 1}))
+
+doc_clean = []
+print("Cleaning the submissions")
 for s in submissions:
-    if s["type"] == "post":
-        text = s["title"]+' '+s["selftext"]
-        doc_complete.append(utils.simple_preprocess(text))
-    else:
-        doc_complete.append(s["body"])
+    
+    text = s["body"] if "body" in s else s["selftext"]
+
+    text = sanitize_text(text)
+
+    text = clean_up(text)
+
+    text = " ".join(lemma.lemmatize(word) for word in text.split())
+
+    doc_clean.append(text.split())
+
+
 # Build the bigram and trigram models
 # higher threshold fewer phrases.
-bigram = models.Phrases(doc_complete, min_count=5, threshold=100)
-trigram = models.Phrases(bigram[doc_complete], threshold=100)
+bigram = gensim.models.Phrases(doc_clean, min_count=5, threshold=100)
+trigram = gensim.models.Phrases(bigram[doc_clean], threshold=100)
 
 # Faster way to get a sentence clubbed as a trigram/bigram
-bigram_mod = models.phrases.Phraser(bigram)
-trigram_mod = models.phrases.Phraser(trigram)
+bigram_mod = gensim.models.phrases.Phraser(bigram)
+trigram_mod = gensim.models.phrases.Phraser(trigram)
 
-
-def make_bigrams(texts):
-    return bigram_mod[texts] 
-
-
-def make_trigrams(texts):
-    return [trigram_mod[bigram_mod[doc]] for doc in texts]
-
-def clean(doc):
-    stop_free = [i for i in doc if i not in stop]
-
-    punc_free = [ch for ch in stop_free if ch not in exclude]
-
-    data_words_bigrams = make_bigrams(punc_free)
-
-    pos_tagged = pos_tag(data_words_bigrams)
-
-    to_consider = list(filter(lambda x: x[1] not in [
-                       'IN', 'CD', 'MD', 'FW', 'SYM'], pos_tagged))
-
-    to_consider = list(map(lambda x: x[0],to_consider))
-
-    to_consider = list(filter(lambda x: x not in [
-                       'neet', 'im', 'irl', "すうふん", "ddfghdhfghfgh", "sᴜᴘᴇʀ_ᴅᴏɴɢ", "scho", "test", "testtest"], to_consider))
-
-    normalized = [lemma.lemmatize(word) for word in to_consider]
-    return normalized
-
-    
-def compute_coherence_values(dictionary, corpus, texts, limit, start=2, step=3):
-    """
-    Compute c_v coherence for various number of topics
-
-    Parameters:
-    ----------
-    dictionary : Gensim dictionary
-    corpus : Gensim corpus
-    texts : List of input texts
-    limit : Max num of topics
-
-    Returns:
-    -------
-    model_list : List of LDA topic models
-    coherence_values : Coherence values corresponding to the LDA model with respective number of topics
-    """
-    coherence_values = []
-    model_list = []
-    mallet_path = "../models/mallet-2.0.8/bin/mallet"
-    for num_topics in range(start, limit, step):
-        model = models.wrappers.LdaMallet(
-            mallet_path, corpus=corpus, num_topics=num_topics, id2word=dictionary)
-        model_list.append(model)
-        coherencemodel = models.CoherenceModel(
-            model=model, texts=texts, dictionary=dictionary, coherence='c_v')
-        coherence_values.append(coherencemodel.get_coherence())
-
-    return model_list, coherence_values
-
-print("Cleaning the submissions")
-doc_clean = [clean(doc) for doc in doc_complete]
-
-print(doc_complete[0])
-print(doc_clean[0])
-
-print("Creating the dictionary")
+print("Creating the matrix")
 dictionary = corpora.Dictionary(doc_clean)
 
-print(len(dictionary))
-print("Creating the BOW representation")
-corpus = [dictionary.doc2bow(doc) for doc in doc_clean]
+doc_term_matrix = [dictionary.doc2bow(doc) for doc in doc_clean]
 
-#lda_model = models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=15, random_state=100,
-#                                     update_every=1, chunksize=250, passes=10, alpha='auto', per_word_topics=True)
+print("Performing LDA")
+# Creating the object for LDA model using gensim library
+Lda = models.ldamodel.LdaModel
 
-#doc_lda = lda_model[corpus]
-#print(lda_model.print_topics())
+# Running and Trainign LDA model on the document term matrix.
+ldamodel = Lda(doc_term_matrix, num_topics=10, id2word=dictionary)
 
-'''tfidf_model = models.TfidfModel(corpus, id2word=dictionary)
+print("Performing LSI")
+lsi_model = models.LsiModel(
+    corpus=doc_term_matrix, num_topics=NUM_TOPICS, id2word=dictionary)
 
-t_corpus = tfidf_model[corpus]
-print("Creating lda models and coherence")
-model_list, coherence_values = compute_coherence_values(
-    dictionary=dictionary, corpus=corpus, texts=doc_clean, start=18, limit=28, step=1)
+print("LDA Model:")
 
-# Show graph
-limit = 28
-start = 18
-step = 1
-x = range(start, limit, step)
-plt.plot(x, coherence_values)
-plt.xlabel("Num Topics")
-plt.ylabel("Coherence score")
-plt.legend(("coherence_values"), loc='best')
-plt.show()'''
+for idx in range(NUM_TOPICS):
+    # Print the first 10 most representative topics
+    print("Topic #%s:" % idx, ldamodel.print_topic(idx, 10))
 
-mallet_path = "../models/mallet-2.0.8/bin/mallet"
-model = models.wrappers.LdaMallet(
-    mallet_path, corpus=corpus, num_topics=22, id2word=dictionary)
-doc_lda = model[corpus]
-print(model.show_topics())
+print("=" * 20)
 
+print("LSI Model:")
 
-'''
-lda_model = models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=10, random_state=100,
-                                            update_every=1, chunksize=250, passes=10, alpha='auto', per_word_topics=True)
+for idx in range(NUM_TOPICS):
+    # Print the first 10 most representative topics
+    print("Topic #%s:" % idx, lsi_model.print_topic(idx, 10))
 
-doc_lda = lda_model[corpus]
-print(lda_model.print_topics())
-
-# Compute Perplexity
-# a measure of how good the model is. lower the better.
-print('\nPerplexity: ', lda_model.log_perplexity(corpus))
-
-# Compute Coherence Score
-coherence_model_lda = models.CoherenceModel(
-    model=lda_model, texts=doc_clean, dictionary=dictionary, coherence='c_v')
-coherence_lda = coherence_model_lda.get_coherence()
-print('\nCoherence Score: ', coherence_lda)
-
-tfidf_model = models.TfidfModel(corpus, id2word=dictionary)
-
-lda_model = models.ldamodel.LdaModel(tfidf_model[corpus], id2word=dictionary, num_topics=10, random_state=100,
-                                            update_every=1, chunksize=250, passes=10, alpha='auto', per_word_topics=True)
-
-doc_lda = lda_model[corpus]
-print(lda_model.print_topics())
-
-# Compute Perplexity
-# a measure of how good the model is. lower the better.
-print('\nPerplexity: ', lda_model.log_perplexity(corpus))
-
-# Compute Coherence Score
-coherence_model_lda = models.CoherenceModel(
-    model=lda_model, texts=doc_clean, dictionary=dictionary, coherence='c_v')
-coherence_lda = coherence_model_lda.get_coherence()
-print('\nCoherence Score: ', coherence_lda)
-'''
+print("=" * 20)

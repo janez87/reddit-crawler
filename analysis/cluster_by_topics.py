@@ -20,8 +20,8 @@ client = MongoClient(
 
 db = client[configuration.DB_NAME]
 
-authors = db["author_demographic"].find(
-    {}, {"submission_topics": 1})
+authors = list(db["author_demographic"].find(
+    {}, {"submission_topics": 1,"name":1}))
 
 submission_topics = list(
     map(lambda x: x["submission_topics"], authors))
@@ -32,26 +32,61 @@ for s in submission_topics:
     keys = s.keys()
     topics = topics.union(set(keys))
 
+topic_df = dict.fromkeys(topics,0)
+
 X = []
 for a in authors:
     authors_topic = a["submission_topics"]
-
     author_vector = []
 
-    print(a)
-
+    at_least_one = False
+    
     for t in topics:
         if t in authors_topic: 
             author_vector.append(authors_topic[t])
+            topic_df[t]+=1
+            at_least_one = True
         else:
             author_vector.append(0)
 
+    if(at_least_one):
         X.append(author_vector)
+
+for j, x in enumerate(X):
+    for i,v in enumerate(x):
+        x[i] = v / topic_df[list(topics)[i]]
+
+
+X  = normalize(X,axis=1)
 
 X = np.array(X)
 
+pca = PCA(.9).fit(X)
+X = pca.transform(X)
+
 print(X.shape)
-range_n_clusters = range(2, 10, 1)
+n_cluster = 5
+
+clusterer = KMeans(n_clusters=n_cluster, random_state=10,
+                   init='k-means++')
+
+cluster_labels = clusterer.fit_predict(X)
+
+print(cluster_labels)
+
+clusters_population = [set() for i in range(0,n_cluster)]
+i = 0
+for c in cluster_labels:
+    clusters_population[c] = clusters_population[c].union(set(authors[i]["submission_topics"]))
+    i=i+1
+
+i=0
+for c in clusters_population:
+    print("Cluster",i)
+    print(c)
+    i=i+1
+
+'''range_n_clusters = range(2, 10, 1)
 
 distortions = []
 for n_clusters in range_n_clusters:
@@ -151,3 +186,4 @@ plt.ylabel('Distortion')
 plt.title('The Elbow Method showing the optimal k')
 
 plt.show()
+'''
