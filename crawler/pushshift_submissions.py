@@ -14,6 +14,8 @@ api = PushshiftAPI()
 
 gen = api.search_submissions(subreddit="depression")
 
+cache = []
+
 for s in gen:
 
     to_save = s.d_
@@ -21,7 +23,15 @@ for s in gen:
 
     print(to_save)
 
-    db["depression_push"].insert_one(to_save)
+    cache.append(to_save)
 
+    if len(cache)>configuration.LIMIT:
+        print("Saving a batch of posts")
+
+        db["depression_push"].insert_many(cache)
+        cache=[]
+
+if len(cache)>0:
+    db["depression_push"].insert_many(cache)
 
 print("Done")
