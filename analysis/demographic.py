@@ -226,8 +226,9 @@ chunker = create_chunker()
 
 
 def parse_author(author, male_subreddits, female_subreddits, health_subreddits, sub_categories,health_terms,drug_terms):
+
     print(author)
-    submissions = list(db["submissions"].find({"author_name":author},{"body":1,"selftext":1,"subreddit_name_prefixed":1,"type":1}))
+    submissions = list(db["submissions"].find({"author_name":author},{"id":1,"body":1,"selftext":1,"subreddit_name_prefixed":1,"type":1}))
 
     gender = []
     age = []
@@ -248,7 +249,10 @@ def parse_author(author, male_subreddits, female_subreddits, health_subreddits, 
 
         #if s["type"]=="comment":
         #    continue
-        if s["type"] == "post":
+
+        submission_id = s["id"]
+
+        '''if s["type"] == "post":
             if s["subreddit_name_prefixed"] in male_subreddits:
                 male.append(s["subreddit_name_prefixed"])
             if s["subreddit_name_prefixed"] in female_subreddits:
@@ -272,22 +276,22 @@ def parse_author(author, male_subreddits, female_subreddits, health_subreddits, 
                 if c in submissions_topics:
                     submissions_topics[c] += 1
                 else:
-                    submissions_topics[c] = 1
+                    submissions_topics[c] = 1'''
 
         text = s["body"] if "body" in s else s["selftext"]
 
         text = sanitize_text(text)
         
-        count = count_slang(text)
+        #count = count_slang(text)
 
-        if count > 0:
-            slang_per_sub+=1
-            slang_count+=count
+        #if count > 0:
+        #    slang_per_sub+=1
+        #    slang_count+=count
 
         text = clean_up(text)
 
         blob = TextBlob(text, pos_tagger=pattern_tagger)
-        blob.correct()
+        #blob.correct()
         for sentence in blob.sentences:
             if not sentence.tags or not re.search(r"\b(i|my)\b", str(sentence), re.I):
                 continue
@@ -343,7 +347,7 @@ def parse_author(author, male_subreddits, female_subreddits, health_subreddits, 
 
                 if len(labels)>0:
                     phrase = " ".join([w.lower() for w, t in subtree.leaves()])
-                    save_labeled_sentence(phrase, labels, author, instances,text)
+                    save_labeled_sentence(phrase, labels, author, instances,text,submission_id)
 
             #for subtree in tree.subtrees(filter=lambda t: t.label() in ['AGE']):
                 #phrase = [(w.lower(), t) for w, t in subtree.leaves()]
@@ -356,16 +360,17 @@ def parse_author(author, male_subreddits, female_subreddits, health_subreddits, 
 
     return gender, male,female, age, education, dropped, slang_count, slang_per_sub,medication,health_issues,health_s,submissions_topics,comment_topics,context
 
-def save_labeled_sentence(sentence,labels,author,instance,text):
+def save_labeled_sentence(sentence,labels,author,instance,text,submission_id):
     to_save = {
         "sentence":sentence,
         "labels":labels,
         "author":author,
         "instance":instance,
-        "text":text
+        "text":text,
+        "submission_id":submission_id
     }
 
-    db["sentences_2"].save(to_save)
+    db["sentences_5"].insert_one(to_save)
         
 def get_age(subtree):
 
@@ -455,9 +460,6 @@ def get_education(subtree):
 
         phrase = [w.lower() for w, t in subtree.leaves()]
 
-        if "diploma" in phrase:
-            print(phrase)
-
         return [],[]
                
     educations_attained = list(map(lambda x: x[0],educations_attained))
@@ -518,37 +520,29 @@ def get_context(subtree):
         if len(phrase) == 0:
             return []
         if phrase[0] == ("i", "PRP") and phrase[1][0] == "live":
-            print(phrase)
             context_term = list(
                 filter(lambda x: x[1] in ["JJ", "NN", "NNS","ADV","RB"], phrase))
 
             context = list(map(lambda x: x[0], context_term))
-            print(context)
         if phrase[0] == ("i", "PRP") and phrase[1][0] == "am" and phrase[1][0] == "living":
-            print(phrase)
             context_term = list(
                 filter(lambda x: x[1] in ["JJ", "NN", "NNS", "ADV", "RB"], phrase))
 
             context = list(map(lambda x: x[0], context_term))
-            print(context)
     else:
          phrase = [(w.lower(), t) for w, t in subtree.leaves()]
          if len(phrase) < 3:
             return []
          if phrase[0] == ("i", "PRP") and phrase[1][0] == "live":
-            print(phrase)
             context_term = list(
                 filter(lambda x: x[1] in ["JJ", "NN", "NNS", "ADV", "RB"], phrase))
 
             context = list(map(lambda x: x[0], context_term))
-            print(context)
          if phrase[0] == ("i", "PRP") and phrase[1][0] == "am" and phrase[1][0] == "living":
-            print(phrase)
             context_term = list(
                 filter(lambda x: x[1] in ["JJ", "NN", "NNS", "ADV", "RB"], phrase))
 
             context = list(map(lambda x: x[0], context_term))
-            print(context)
 
     return context
 
@@ -585,11 +579,12 @@ for s in subreddits:
 
 
 for a in authors:
+
     gender, male_count, female_count, age, educations_attained, educations_dropped, slang_count, slang_per_sub, medication, health,health_s, submissions_topics, comment_topics, context = parse_author(
         a, male_subreddits, female_subreddits, health_subreddits,sub_categories,health_terms,drug_terms)
 
-    print(gender, age, "education:",educations_attained, "dropped out",educations_dropped,"health",health,"medication",medication,"health subreddit",health_s)
-    db["author_demographic_1"].update_one({"name": a}, {"$set":{
+    #print(gender, age, "education:",educations_attained, "dropped out",educations_dropped,"health",health,"medication",medication,"health subreddit",health_s)
+    '''db["author_demographic_1"].update_one({"name": a}, {"$set":{
         "name": a,
         "gender": gender,
         "male_subreddits":male_count,
@@ -605,7 +600,7 @@ for a in authors:
         "submission_topics":submissions_topics,
         "comments_topics":comment_topics,
         "context":context
-    }},upsert=True)
+    }},upsert=True)'''
 
     '''db["author_demographic"].save({
         "name":a,
