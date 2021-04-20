@@ -34,7 +34,7 @@ pandas==0.23.0
 pluggy==0.6.0
 praw==5.4.0
 prawcore==0.14.0
-py==1.5.3
+py==1.10.0
 pycodestyle==2.4.0
 pyLDAvis==2.1.2
 pylint==1.9.1
